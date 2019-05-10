@@ -1,0 +1,82 @@
+---
+title: "Reproducible Research Course Project 2"
+output:
+  pdf_document: default
+---
+
+Introduction
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+#Data Download
+Following code is used to read the data
+```{r , echo=TRUE}
+setwd("C:/Users/z003kkec/Desktop/Coursera/assignments/datasources")
+storm_data <- read.csv("repdata_data_StormData.csv.bz2", header = TRUE, sep = ",")
+```
+
+#Data Processing
+
+Across the United States, types of events that are most harmful with respect to population health
+
+Total Fatalities
+```{r , echo=TRUE}
+library(dplyr)
+fatalities <- storm_data %>% select(EVTYPE, FATALITIES) %>% group_by(EVTYPE) %>% summarise(tot.fatalities = sum(FATALITIES)) %>% arrange(desc(tot.fatalities))
+head(fatalities,11)
+```
+
+Total Injuries
+```{r , echo=TRUE}
+injuries <- storm_data %>% select(EVTYPE,INJURIES) %>% group_by(EVTYPE) %>% summarise(tot.injuries=sum(INJURIES)) %>% arrange(desc(tot.injuries))
+head(injuries,11)
+```
+
+
+Across the United States, types of events having greatest economic consequences.
+```{r , echo=TRUE}
+damage <- storm_data %>% select(EVTYPE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP) 
+Symbol <- sort(unique(as.character(damage$PROPDMGEXP)))
+Multiplier <- c(0,0,0,1,10,10,10,10,10,10,10,10,10,10^9,10^2,10^2,10^3,10^6,10^6)
+convert.Multiplier <- data.frame(Symbol, Multiplier)
+damage$Prop.Multiplier <- convert.Multiplier$Multiplier[match(damage$PROPDMGEXP, convert.Multiplier$Symbol)]
+damage$Crop.Multiplier <- convert.Multiplier$Multiplier[match(damage$CROPDMGEXP, convert.Multiplier$Symbol)]
+damage <- damage %>% mutate(PROPDMG=PROPDMG*Prop.Multiplier) %>% mutate(CROPDMG=CROPDMG*Crop.Multiplier) %>% mutate(tot.damage =PROPDMG + CROPDMG )
+damage.evtype <- damage %>% group_by(EVTYPE) %>% summarise(tot.propdamage = sum(tot.damage)) %>% arrange(desc(tot.propdamage))
+head(damage.evtype,10)
+```
+
+#Plots
+
+The top 10 events with the highest total fatalities and injuries are shown graphically.
+
+```{r , echo=TRUE}
+library(ggplot2)
+g <- ggplot(fatalities[1:10,],aes(x=reorder(EVTYPE,desc(tot.fatalities)),y=tot.fatalities)) + 
+  geom_bar(stat="identity",fill='black') + 
+  theme(panel.background = element_rect(fill = 'darkgoldenrod2'),axis.text.x = element_text(angle=90, vjust=1, hjust=1)) +
+  labs(title="Top 10 Events with Highest Total Fatalities") + 
+  labs(x="Event Type",y="Total Fatalities")
+print(g)
+```
+
+```{r , echo=TRUE}
+g <- ggplot(injuries[1:10,],aes(x=reorder(EVTYPE,desc(tot.injuries)),y=tot.injuries)) + 
+  geom_bar(stat="identity",fill='black') + 
+  theme(panel.background = element_rect(fill = 'darkgoldenrod2'),axis.text.x = element_text(angle=90, vjust=1, hjust=1)) +
+  labs(title="Top 10 Events with Highest Total Injuries") + 
+  labs(x="Event Type",y="Total Injuries")
+print(g)
+```
+
+The top 10 events with the highest total economic damages (property and crop combined) are shown graphically.
+
+```{r , echo=TRUE}
+g <- ggplot(damage.evtype[1:10,],aes(x=reorder(EVTYPE,desc(tot.propdamage)),y=tot.propdamage)) + 
+  geom_bar(stat="identity",fill='black') + 
+  theme(panel.background = element_rect(fill = 'darkgoldenrod2'),axis.text.x = element_text(angle=90, vjust=1, hjust=1)) +
+  labs(title="Top 10 Events with Highest Economic Consequences") + 
+  labs(x="Event Type",y="Total Economic Impact")
+print(g)
+```
